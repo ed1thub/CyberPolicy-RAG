@@ -13,3 +13,7 @@ data/uploaded_policies/
 dist/
 build/
 *.egg-info/
+
+# Local planning and coding-agent documentation
+*.md
+!README.md

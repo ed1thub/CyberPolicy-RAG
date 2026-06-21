@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+backend/app.db
+data/chroma/
+data/uploaded_policies/
+.DS_Store
+.vscode/

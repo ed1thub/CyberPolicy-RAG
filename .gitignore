@@ -1,9 +1,15 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
 .env
-backend/app.db
+*.db
 data/chroma/
 data/uploaded_policies/
 .DS_Store
 .vscode/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/

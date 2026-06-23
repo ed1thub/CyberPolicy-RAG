@@ -3,7 +3,8 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.auth.auth_service import authenticate_user, create_access_token
@@ -12,13 +13,6 @@ from backend.app.database import get_db
 from backend.app.models import User
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-
-
-class LoginRequest(BaseModel):
-    """Credentials accepted by the login endpoint."""
-
-    username: str = Field(min_length=1)
-    password: str = Field(min_length=1)
 
 
 class TokenResponse(BaseModel):
@@ -37,7 +31,7 @@ class CurrentUserResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 def login(
-    credentials: LoginRequest,
+    credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
     database_session: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
     """Authenticate a username and password and return a bearer token."""

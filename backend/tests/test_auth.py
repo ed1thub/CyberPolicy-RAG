@@ -53,19 +53,20 @@ def client(
 def login_as_student(client: TestClient) -> str:
     response = client.post(
         "/auth/login",
-        json={"username": "student1", "password": "password123"},
+        data={"username": "student1", "password": "password123"},
     )
     assert response.status_code == 200
     return response.json()["access_token"]
 
 
-def test_successful_login_returns_bearer_token(client: TestClient) -> None:
+def test_oauth2_form_login_returns_bearer_token(client: TestClient) -> None:
     response = client.post(
         "/auth/login",
-        json={"username": "student1", "password": "password123"},
+        data={"username": "student1", "password": "password123"},
     )
 
     assert response.status_code == 200
+    assert set(response.json()) == {"access_token", "token_type"}
     assert response.json()["token_type"] == "bearer"
     payload = jwt.decode(
         response.json()["access_token"],
@@ -79,7 +80,7 @@ def test_successful_login_returns_bearer_token(client: TestClient) -> None:
 def test_failed_login_is_rejected(client: TestClient) -> None:
     response = client.post(
         "/auth/login",
-        json={"username": "student1", "password": "wrong-password"},
+        data={"username": "student1", "password": "wrong-password"},
     )
 
     assert response.status_code == 401
@@ -120,7 +121,7 @@ def test_expired_token_is_rejected(client: TestClient) -> None:
 def test_auth_responses_do_not_expose_password_hash(client: TestClient) -> None:
     login_response = client.post(
         "/auth/login",
-        json={"username": "student1", "password": "password123"},
+        data={"username": "student1", "password": "password123"},
     )
     token = login_response.json()["access_token"]
     me_response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})

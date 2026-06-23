@@ -10,6 +10,7 @@ from backend.app.models import User
 from backend.app.rag.rag_service import RagService
 from backend.app.rag.vector_store import VectorStore
 from backend.app.schemas import ChatRequest, ChatResponse, SourceCitation
+from backend.app.security.prompt_guard import BLOCKED_ANSWER, check_prompt
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -27,6 +28,16 @@ def query_chat(
     rag_service: Annotated[RagService, Depends(get_rag_service)],
 ) -> ChatResponse:
     """Answer an authenticated user's question using their current role."""
+    # Prompt guard runs before retrieval — blocked prompts never reach the RAG service
+    guard_result = check_prompt(request.question)
+    if not guard_result.allowed:
+        return ChatResponse(
+            answer=BLOCKED_ANSWER,
+            sources=[],
+            risk_flags=guard_result.risk_flags,
+            confidence="blocked",
+        )
+
     result = rag_service.answer(request.question, current_user.role)
     return ChatResponse(
         answer=result.answer,

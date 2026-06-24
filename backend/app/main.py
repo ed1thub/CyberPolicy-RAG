@@ -8,6 +8,7 @@ from backend.app.auth.routes import router as auth_router
 from backend.app.chat.routes import router as chat_router
 from backend.app.config import settings
 from backend.app.database import init_database
+from backend.app.documents.routes import router as documents_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(audit_router)
+app.include_router(documents_router)
 
 
 @app.get("/")

@@ -73,6 +73,38 @@ class ApiClient:
         except requests.RequestException:
             return None
 
+    def upload_document(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        title: str,
+        sensitivity_level: str,
+        allowed_roles: str,
+        token: str,
+    ) -> dict[str, Any] | None:
+        """POST /documents/upload — multipart form upload.
+
+        Returns the JSON response body (success or error detail) on any HTTP
+        response, None only on network / connection error.
+        Do NOT include Content-Type in headers — requests sets the multipart
+        boundary automatically.
+        """
+        try:
+            response = requests.post(
+                f"{self.base_url}/documents/upload",
+                files={"file": (filename, file_bytes, "application/octet-stream")},
+                data={
+                    "title": title,
+                    "sensitivity_level": sensitivity_level,
+                    "allowed_roles": allowed_roles,
+                },
+                headers=self._auth_headers(token),
+                timeout=_TIMEOUT,
+            )
+            return response.json()
+        except requests.RequestException:
+            return None
+
     def get_audit_logs(self, token: str) -> list[dict[str, Any]] | None:
         """GET /audit/logs — all audit log entries.
 

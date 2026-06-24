@@ -15,7 +15,6 @@ from backend.app.documents.routes import (
     get_upload_vector_store,
 )
 from backend.app.documents.service import (
-    ALLOWED_EXTENSIONS,
     MAX_FILE_SIZE,
     validate_upload,
 )

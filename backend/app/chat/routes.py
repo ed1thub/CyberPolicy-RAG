@@ -13,6 +13,7 @@ from backend.app.models import User
 from backend.app.rag.rag_service import RagService
 from backend.app.rag.vector_store import VectorStore
 from backend.app.schemas import ChatRequest, ChatResponse, SourceCitation
+from backend.app.security.output_guard import check_output
 from backend.app.security.prompt_guard import BLOCKED_ANSWER, check_prompt
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -66,12 +67,43 @@ def query_chat(
         risk_flags=result.risk_flags,
         confidence=result.confidence,
     )
+
+    output_guard_result = check_output(response.answer)
+    if not output_guard_result.allowed:
+        response = ChatResponse(
+            answer=output_guard_result.answer,
+            sources=response.sources,
+            risk_flags=_merge_risk_flags(
+                response.risk_flags,
+                output_guard_result.risk_flags,
+            ),
+            confidence="blocked",
+        )
+
     create_audit_log(
         database_session,
         user=current_user,
         question=request.question,
-        answer_status="no_source" if result.confidence == "none" else "answered",
-        documents_used=[source.filename for source in result.sources],
-        risk_flags=result.risk_flags,
+        answer_status=_answer_status_for(response.confidence),
+        documents_used=[source.filename for source in response.sources],
+        risk_flags=response.risk_flags,
     )
     return response
+
+
+def _merge_risk_flags(existing_flags: list[str], new_flags: list[str]) -> list[str]:
+    """Append new risk flags without duplicates while preserving order."""
+    merged_flags = list(existing_flags)
+    for flag in new_flags:
+        if flag not in merged_flags:
+            merged_flags.append(flag)
+    return merged_flags
+
+
+def _answer_status_for(confidence: str) -> str:
+    """Map final chat confidence to the stored audit status."""
+    if confidence == "none":
+        return "no_source"
+    if confidence == "blocked":
+        return "blocked"
+    return "answered"

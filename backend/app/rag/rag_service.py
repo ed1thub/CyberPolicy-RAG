@@ -2,7 +2,13 @@
 
 from dataclasses import dataclass
 
-from backend.app.rag.llm_adapter import LLMProvider, MockLLM, NO_SOURCE_ANSWER
+from backend.app.config import settings
+from backend.app.rag.llm_adapter import (
+    LLMProvider,
+    MockLLM,
+    NO_SOURCE_ANSWER,
+    POLICY_NOT_SPECIFIED_ANSWER,
+)
 from backend.app.rag.retriever import Retriever
 from backend.app.rag.vector_store import SearchResult, VectorStore
 
@@ -58,11 +64,16 @@ class RagService:
     ) -> None:
         self._retriever = Retriever(vector_store)
         self._llm: LLMProvider = llm or MockLLM()
+        self._top_k = max(1, settings.rag_top_k)
 
     def answer(self, question: str, role: str) -> ChatResponse:
         """Answer a question using only documents the role is allowed to access."""
         # Access control before retrieval — unknown roles get no results
-        results = self._retriever.retrieve_for_role(question, role)
+        results = self._retriever.retrieve_for_role(
+            question,
+            role,
+            top_k=self._top_k,
+        )
 
         if not results:
             return _NO_SOURCE_RESPONSE
@@ -70,6 +81,13 @@ class RagService:
         # LLM only sees the authorised retrieved context
         context_chunks = [result.text for result in results]
         answer_text = self._llm.generate(question, context_chunks)
+        if answer_text == POLICY_NOT_SPECIFIED_ANSWER:
+            return ChatResponse(
+                answer=answer_text,
+                sources=[],
+                risk_flags=[],
+                confidence="none",
+            )
         sources = _build_citations(results)
 
         return ChatResponse(

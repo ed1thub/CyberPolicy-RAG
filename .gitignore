@@ -17,3 +17,5 @@ build/
 # Local planning and coding-agent documentation
 *.md
 !README.md
+.agents
+.claude

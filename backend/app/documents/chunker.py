@@ -6,9 +6,9 @@ from pathlib import Path
 
 from backend.app.documents.loader import LoadedDocument
 
-TARGET_WORDS = 650   # aim for this chunk size
-MAX_WORDS = 800      # never exceed this (unless a single paragraph is larger)
-OVERLAP_WORDS = 100  # words shared between adjacent chunks
+TARGET_WORDS = 300  # aim for this chunk size
+MAX_WORDS = 400  # never exceed this (unless a single paragraph is larger)
+OVERLAP_WORDS = 50  # words shared between adjacent chunks
 
 
 @dataclass

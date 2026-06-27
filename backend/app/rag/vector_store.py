@@ -141,6 +141,14 @@ class VectorStore:
             )
         return results
 
+    def delete_by_filename(self, filename: str) -> int:
+        """Delete all chunks whose metadata filename matches. Returns count deleted."""
+        result = self.collection.get(where={"filename": filename}, include=[])
+        ids = result.get("ids") or []
+        if ids:
+            self.collection.delete(ids=ids)
+        return len(ids)
+
     def reset_collection(self) -> None:
         """Delete all stored policy chunks and recreate the collection."""
         self.client.delete_collection(name=COLLECTION_NAME)

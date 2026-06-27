@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from backend.app.auth.dependencies import get_current_user
 from backend.app.database import get_db
 from backend.app.documents.service import process_upload, validate_upload
-from backend.app.models import User
+from backend.app.models import Document, User
 from backend.app.rag.vector_store import VectorStore
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -27,6 +27,24 @@ class UploadResponse(BaseModel):
     title: str
     sensitivity_level: str
     chunk_count: int
+    message: str
+
+
+class DocumentInfo(BaseModel):
+    """Summary of an indexed policy document."""
+
+    id: int
+    filename: str
+    title: str
+    sensitivity_level: str
+    uploaded_at: str
+
+
+class DeleteResponse(BaseModel):
+    """Confirmation of a document deletion."""
+
+    id: int
+    chunks_removed: int
     message: str
 
 
@@ -104,4 +122,66 @@ async def upload_document(
             f"Document '{result.title}' uploaded and indexed successfully "
             f"({result.chunk_count} chunk{'s' if result.chunk_count != 1 else ''})."
         ),
+    )
+
+
+@router.get("/", response_model=list[DocumentInfo])
+def list_documents(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db_session: Annotated[Session, Depends(get_db)],
+) -> list[DocumentInfo]:
+    """List all indexed policy documents. Admin role required."""
+    if current_user.role != _ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Listing documents requires admin role.",
+        )
+    docs = db_session.query(Document).order_by(Document.uploaded_at.desc()).all()
+    return [
+        DocumentInfo(
+            id=doc.id,
+            filename=doc.filename,
+            title=doc.title,
+            sensitivity_level=doc.sensitivity_level,
+            uploaded_at=doc.uploaded_at.isoformat(),
+        )
+        for doc in docs
+    ]
+
+
+@router.delete("/{doc_id}", response_model=DeleteResponse)
+def delete_document(
+    doc_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db_session: Annotated[Session, Depends(get_db)],
+    vector_store: Annotated[VectorStore, Depends(get_upload_vector_store)],
+    upload_dir: Annotated[Path, Depends(get_upload_dir)],
+) -> DeleteResponse:
+    """Delete a document from SQLite, ChromaDB, and disk. Admin role required."""
+    if current_user.role != _ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Deleting documents requires admin role.",
+        )
+
+    doc = db_session.get(Document, doc_id)
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {doc_id} not found.",
+        )
+
+    chunks_removed = vector_store.delete_by_filename(doc.filename)
+
+    file_path = upload_dir / doc.filename
+    if file_path.exists():
+        file_path.unlink()
+
+    db_session.delete(doc)
+    db_session.commit()
+
+    return DeleteResponse(
+        id=doc_id,
+        chunks_removed=chunks_removed,
+        message=f"Document '{doc.title}' deleted ({chunks_removed} chunk{'s' if chunks_removed != 1 else ''} removed from index).",
     )

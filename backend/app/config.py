@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
     chroma_path: str = "../data/chroma"
     llm_provider: str = "mock"
+    rag_top_k: int = 3
+    llm_temperature: float = 0.1
+    llm_max_output_tokens: int = 120
     openai_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"

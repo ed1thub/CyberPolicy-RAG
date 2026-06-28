@@ -21,6 +21,7 @@ class SourceCitation:
     filename: str
     section_heading: str | None
     page: int | None
+    sensitivity_level: str | None = None
 
 
 @dataclass
@@ -122,6 +123,7 @@ def _build_citations(results: list[SearchResult]) -> list[SourceCitation]:
                 filename=meta.get("filename", ""),
                 section_heading=section,
                 page=page,
+                sensitivity_level=meta.get("sensitivity_level") or None,
             )
         )
 

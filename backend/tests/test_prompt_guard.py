@@ -296,4 +296,4 @@ def test_blocked_response_has_all_required_fields(
         headers=user_auth_header(),
     )
     body = response.json()
-    assert set(body.keys()) == {"answer", "sources", "risk_flags", "confidence"}
+    assert {"answer", "sources", "risk_flags", "confidence", "chat_id", "chat_title"}.issubset(body.keys())

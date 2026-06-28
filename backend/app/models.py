@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.database import Base
 
@@ -52,3 +52,41 @@ class AuditLog(Base):
     documents_used: Mapped[str] = mapped_column(Text, default="[]")
     risk_flags: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class Chat(Base):
+    """A conversation thread owned by a single user."""
+
+    __tablename__ = "chats"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), default="New chat")
+    pinned: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        "ChatMessage",
+        back_populates="chat",
+        cascade="all, delete-orphan",
+        order_by="ChatMessage.id",
+    )
+
+
+class ChatMessage(Base):
+    """A single message (user or assistant) inside a Chat."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chat_id: Mapped[int] = mapped_column(
+        ForeignKey("chats.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)      # "user" | "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    sources: Mapped[str] = mapped_column(Text, default="[]")           # JSON
+    risk_flags: Mapped[str] = mapped_column(Text, default="[]")        # JSON
+    confidence: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")

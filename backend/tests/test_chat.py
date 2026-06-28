@@ -151,12 +151,14 @@ def test_response_contains_required_fields(
     )
 
     assert response.status_code == 200
-    assert set(response.json()) == {"answer", "sources", "risk_flags", "confidence"}
-    assert response.json()["sources"] == [
+    body = response.json()
+    assert {"answer", "sources", "risk_flags", "confidence", "chat_id", "chat_title"}.issubset(body)
+    assert body["sources"] == [
         {
             "document_title": "Password Policy",
             "filename": "password_policy.md",
             "section_heading": "Multi-Factor Authentication",
             "page": None,
+            "sensitivity_level": None,
         }
     ]

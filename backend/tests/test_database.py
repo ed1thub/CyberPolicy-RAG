@@ -34,7 +34,7 @@ def test_database_initialises_all_tables(
     _, database_engine, _ = test_database
     table_names = set(inspect(database_engine).get_table_names())
 
-    assert table_names == {"users", "documents", "audit_logs"}
+    assert table_names == {"users", "documents", "audit_logs", "chats", "chat_messages"}
 
 
 def test_demo_users_exist(

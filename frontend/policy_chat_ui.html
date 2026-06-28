@@ -206,7 +206,7 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 }
 .conv-wrap:hover{background:var(--surface)}
 .conv-wrap.active{background:var(--surface-hi)}
-.conv-wrap:hover .conv-del,.conv-wrap:focus-within .conv-del{opacity:1}
+.conv-wrap:hover .conv-actions,.conv-wrap:focus-within .conv-actions{opacity:1}
 .conv{
   flex:1;min-width:0;padding:7px 8px 7px 10px;
   font-size:13px;color:var(--text-sec);
@@ -215,15 +215,30 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 }
 .conv-wrap:hover .conv,.conv-wrap.active .conv{color:var(--text)}
 .conv-wrap.active .conv{font-weight:500}
-.conv-del{
-  flex:none;width:22px;height:22px;margin-right:5px;
-  border-radius:var(--r-sm);
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;color:var(--text-muted);
-  transition:opacity 120ms ease,background-color 120ms ease,color 120ms ease
+.conv-actions{
+  display:flex;align-items:center;gap:1px;margin-right:3px;
+  opacity:0;transition:opacity 120ms ease;flex-shrink:0
 }
+.conv-action{
+  flex:none;width:22px;height:22px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);
+  transition:background-color 120ms ease,color 120ms ease
+}
+.conv-action:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .conv-del:hover{background:rgba(244,71,71,0.14);color:var(--red)}
-.conv-del:focus-visible{outline:2px solid var(--blue);outline-offset:1px;opacity:1}
+.conv-pin:hover,.conv-ren:hover{background:var(--surface-hi);color:var(--text)}
+.conv-wrap.pinned .conv-pin{color:var(--blue)}
+.pin-dot{
+  flex:none;width:5px;height:5px;margin-left:7px;border-radius:50%;
+  background:var(--blue);flex-shrink:0
+}
+.conv-rename-input{
+  flex:1;min-width:0;margin:2px 4px;padding:3px 6px;
+  font-size:13px;color:var(--text);
+  background:var(--bg);border:1px solid var(--blue);
+  border-radius:var(--r-sm);outline:none
+}
 .sb-empty{font-size:12px;color:var(--text-muted);padding:4px 6px;font-style:italic}
 /* sidebar nav items */
 .sb-nav-sep{
@@ -279,7 +294,8 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 .view-hd{
   height:52px;box-sizing:border-box;padding:0 20px;
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:10px;flex:none
+  display:flex;align-items:center;gap:10px;flex:none;
+  position:relative
 }
 .view-hd-dot{
   width:6px;height:6px;border-radius:var(--r-pill);
@@ -385,26 +401,19 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 }
 @keyframes tb{0%,80%,100%{opacity:.2;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
 
-/* Tool card */
-.tool-card{
-  margin:10px 0;border:1px solid var(--border);
-  border-radius:var(--r-md);overflow:hidden;background:var(--surface)
-}
-.tool-card+.tool-card{margin-top:5px}
-.tc-hd{
-  display:flex;align-items:center;gap:7px;
-  padding:8px 12px;border-bottom:1px solid var(--border-sub)
-}
+/* Tool dot colours (used in blocked-status) */
 .tc-dot{width:7px;height:7px;border-radius:var(--r-pill);flex:none}
 .dot-blue {background:#5a9dff}
 .dot-green{background:var(--green)}
 .dot-amber{background:var(--amber)}
 .dot-red  {background:var(--red)}
-.tc-name{font-family:var(--mono);font-size:11.5px;color:var(--text-sec);font-weight:500;flex:1}
-.tc-dur{font-family:var(--mono);font-size:11px;color:var(--text-muted)}
-.tc-body{
-  padding:9px 12px;font-family:var(--mono);
-  font-size:11.5px;color:var(--text-muted);line-height:1.6;word-break:break-word
+
+/* Agent reply bubble */
+.agent-bubble{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:5px var(--r-xl) var(--r-xl) var(--r-xl);
+  padding:12px 16px;margin-top:2px;
+  position:relative
 }
 
 /* Inline alert card */
@@ -432,23 +441,22 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 /* Answer text */
 .answer-text{
   font-size:13.5px;line-height:1.72;
-  color:var(--text-sec);white-space:pre-wrap;word-break:break-word
+  color:var(--text-sec);white-space:pre-wrap;word-break:break-word;
+  padding-right:28px
 }
 
-/* Action / copy row */
-.action-row{display:flex;align-items:center;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
-.ab{
-  padding:6px 14px;border-radius:var(--r-md);
-  font-size:12.5px;font-weight:500;
-  transition:background-color 120ms ease,color 120ms ease
+/* Copy icon button */
+.copy-btn{
+  position:absolute;top:10px;right:10px;
+  width:26px;height:26px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);opacity:0;
+  transition:opacity 120ms ease,background-color 120ms ease,color 120ms ease
 }
-.ab.primary{background:var(--text);color:#111;border:1px solid var(--text)}
-.ab.primary:hover{background:#fff}
-.ab.secondary{background:transparent;color:var(--text-sec);border:1px solid var(--border)}
-.ab.secondary:hover{background:var(--surface);color:var(--text)}
-.ab.ghost{background:transparent;color:var(--text-muted);border:1px solid transparent}
-.ab.ghost:hover{color:var(--text-sec)}
-.ab.copied{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important}
+.agent-bubble:hover .copy-btn,.copy-btn:focus-visible{opacity:1}
+.copy-btn:hover{background:var(--surface-hi);color:var(--text-sec)}
+.copy-btn:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.copy-btn.copied{color:var(--green);opacity:1}
 
 /* Footnotes / sources */
 .footnotes{
@@ -478,25 +486,27 @@ input,textarea,select{font-family:inherit;font-size:inherit}
   margin-top:10px;font-size:11.5px;color:var(--red)
 }
 
-/* ── Status bar ──────────────────────────────────────────────── */
-.status-bar{border-top:1px solid var(--border);padding:0;flex:none}
-.status-inner{
-  max-width:768px;margin:0 auto;padding:6px 24px;
-  display:flex;align-items:center;gap:5px;
-  font-size:11.5px;color:var(--text-muted);flex-wrap:wrap
+/* ── Settings panel ──────────────────────────────────────────── */
+.settings-panel{
+  position:absolute;top:54px;right:8px;z-index:150;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);width:272px;
+  box-shadow:0 10px 32px rgba(0,0,0,0.45);overflow:hidden
 }
-.st-dot{
-  width:6px;height:6px;border-radius:var(--r-pill);background:var(--green);flex:none;
-  animation:pulse 2s ease-in-out infinite
+.sp-section{padding:12px 14px}
+.sp-label{
+  font-size:10px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text-muted);margin-bottom:9px
 }
-@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
-.st-sep{color:var(--border)}
-.st-access{display:flex;align-items:center;gap:4px}
-.st-sens{
-  font-family:var(--mono);font-size:9.5px;font-weight:600;
-  letter-spacing:.04em;text-transform:uppercase;
-  padding:1px 5px;border-radius:2px
+.sp-row{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:12.5px;margin-bottom:5px
 }
+.sp-row:last-child{margin-bottom:0}
+.sp-key{color:var(--text-sec)}
+.sp-val{color:var(--text);font-weight:500;font-family:var(--mono);font-size:12px}
+.sp-chips{display:flex;gap:5px;flex-wrap:wrap}
+.sp-sep{height:1px;background:var(--border-sub)}
 
 /* ── Composer ────────────────────────────────────────────────── */
 .comp-wrap{padding:10px 0 18px;flex:none}
@@ -815,7 +825,7 @@ input,textarea,select{font-family:inherit;font-size:inherit}
       <span class="view-hd-dot"></span>
       <span class="view-title" id="thread-title">New chat</span>
       <span class="role-badge" id="role-badge">USER</span>
-      <button class="icon-btn" title="Settings">
+      <button class="icon-btn" id="settings-btn" title="Settings">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="1.5"
              stroke-linecap="round" stroke-linejoin="round">
@@ -823,20 +833,42 @@ input,textarea,select{font-family:inherit;font-size:inherit}
           <circle cx="12" cy="12" r="3"/>
         </svg>
       </button>
+
+      <!-- Settings panel (shown on gear click) -->
+      <div id="settings-panel" class="settings-panel hidden">
+        <div class="sp-section">
+          <div class="sp-label">Session</div>
+          <div class="sp-row">
+            <span class="sp-key">User</span>
+            <span class="sp-val" id="sp-username">—</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-key">Role</span>
+            <span class="sp-val" id="sp-role">—</span>
+          </div>
+        </div>
+        <div class="sp-sep"></div>
+        <div class="sp-section">
+          <div class="sp-label">Document Access</div>
+          <div class="sp-chips" id="sp-access-chips"></div>
+        </div>
+        <div class="sp-sep"></div>
+        <div class="sp-section">
+          <div class="sp-label">System</div>
+          <div class="sp-row">
+            <span class="sp-key">LLM</span>
+            <span class="sp-val" id="sp-llm">MOCK</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-key">Embeddings</span>
+            <span class="sp-val">all-MiniLM-L6-v2</span>
+          </div>
+
+        </div>
+      </div>
+
     </div>
     <div class="thread-scroll" id="thread-scroll"></div>
-    <div class="status-bar">
-      <div class="status-inner" id="status-inner">
-        <span class="st-dot"></span>
-        <span id="st-access" class="st-access"></span>
-        <span class="st-sep">&middot;</span>
-        <span id="st-llm">MOCK LLM</span>
-        <span class="st-sep">&middot;</span>
-        all-MiniLM-L6-v2
-        <span class="st-sep">&middot;</span>
-        128k ctx
-      </div>
-    </div>
     <div class="comp-wrap">
       <div class="comp-center">
         <div class="comp">
@@ -1025,34 +1057,29 @@ const SAMPLE_QUESTIONS = {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   State
+   State  — chat history is backend-owned; never stored in localStorage
    ───────────────────────────────────────────────────────────── */
 const St = {
-  token:    null,
-  user:     null,    // { username, role }
-  chats:    [],
-  activeId: null,
-  busy:     false,
-  view:     'chat',  // 'chat' | 'audit' | 'upload'
+  token:          null,
+  user:           null,   // { username, role }
+  chats:          [],     // [{id, title, created_at}] — summaries from GET /chats/
+  activeId:       null,   // numeric chat id
+  activeMessages: [],     // messages for the active chat (lazy-loaded)
+  busy:           false,
+  view:           'chat', // 'chat' | 'audit' | 'upload'
 };
 
 /* ─────────────────────────────────────────────────────────────
-   Persistence
+   Token persistence  — only the JWT lives in localStorage
    ───────────────────────────────────────────────────────────── */
-function persist() {
-  try {
-    localStorage.setItem('cp_token',  St.token  || '');
-    localStorage.setItem('cp_chats',  JSON.stringify(St.chats));
-    localStorage.setItem('cp_active', St.activeId || '');
-  } catch(_) {}
+function persistToken() {
+  try { localStorage.setItem('cp_token', St.token || ''); } catch(_) {}
 }
-
-function restore() {
-  try {
-    St.token    = localStorage.getItem('cp_token')  || null;
-    St.chats    = JSON.parse(localStorage.getItem('cp_chats') || '[]');
-    St.activeId = localStorage.getItem('cp_active') || null;
-  } catch(_) { St.chats = []; St.activeId = null; }
+function restoreToken() {
+  try { St.token = localStorage.getItem('cp_token') || null; } catch(_) { St.token = null; }
+}
+function clearToken() {
+  try { localStorage.removeItem('cp_token'); } catch(_) {}
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1078,11 +1105,11 @@ async function apiMe(token) {
   return r.json();
 }
 
-async function apiChat(question) {
+async function apiChat(question, chatId) {
   const r = await fetch(`${BASE}/chat/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${St.token}` },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, chat_id: chatId || null }),
   });
   if (r.status === 401) { doLogout(); throw new Error('Session expired — please sign in again.'); }
   if (!r.ok) {
@@ -1090,6 +1117,45 @@ async function apiChat(question) {
     try { d = (await r.json()).detail || d; } catch(_) {}
     throw new Error(d);
   }
+  return r.json();
+}
+
+async function apiListChats() {
+  const r = await fetch(`${BASE}/chats/`, { headers: { Authorization: `Bearer ${St.token}` } });
+  if (!r.ok) throw new Error(`Failed to load chats (${r.status})`);
+  return r.json();
+}
+
+async function apiCreateChat() {
+  const r = await fetch(`${BASE}/chats/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${St.token}` },
+  });
+  if (!r.ok) throw new Error(`Failed to create chat (${r.status})`);
+  return r.json();
+}
+
+async function apiGetChat(id) {
+  const r = await fetch(`${BASE}/chats/${id}`, { headers: { Authorization: `Bearer ${St.token}` } });
+  if (!r.ok) throw new Error(`Failed to load chat (${r.status})`);
+  return r.json();
+}
+
+async function apiDeleteChatRemote(id) {
+  const r = await fetch(`${BASE}/chats/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${St.token}` },
+  });
+  if (!r.ok && r.status !== 404) throw new Error(`Failed to delete chat (${r.status})`);
+}
+
+async function apiUpdateChat(id, body) {
+  const r = await fetch(`${BASE}/chats/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${St.token}` },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`Failed to update chat (${r.status})`);
   return r.json();
 }
 
@@ -1144,42 +1210,45 @@ async function apiUpload(file, title, sensitivityLevel, allowedRoles) {
 /* ─────────────────────────────────────────────────────────────
    Helpers
    ───────────────────────────────────────────────────────────── */
-function uuid() {
-  return crypto.randomUUID ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
 function nowTs() {
   return new Date().toLocaleTimeString('en', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
 }
-function dayBucket(ts) {
-  const d = new Date(ts), t = new Date(), y = new Date();
+function isoToTs(iso) {
+  return new Date(iso).toLocaleTimeString('en', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+function dayBucket(iso) {
+  const d = new Date(iso), t = new Date(), y = new Date();
   y.setDate(y.getDate() - 1);
   if (d.toDateString() === t.toDateString()) return 'Today';
   if (d.toDateString() === y.toDateString()) return 'Yesterday';
   return d.toLocaleDateString('en', { month:'short', day:'numeric', year:'numeric' });
 }
-function chatTitle(chat) {
-  const f = chat.messages.find(m => m.role === 'user');
-  if (!f) return 'New chat';
-  const t = f.content.replace(/\s+/g,' ').trim();
-  return t.length > 50 ? t.slice(0,50)+'…' : t;
+function chatTitle(chat) { return chat.title || 'New chat'; }
+
+function normalizeMsg(m) {
+  return {
+    role:       m.role,
+    content:    m.content,
+    sources:    m.sources    || [],
+    risk_flags: m.risk_flags || [],
+    confidence: m.confidence || null,
+    timestamp:  m.timestamp  || (m.created_at ? isoToTs(m.created_at) : ''),
+  };
 }
-function getActiveChat() { return St.chats.find(c => c.id === St.activeId) || null; }
-function createNewChat() {
-  const id = uuid();
-  St.chats.unshift({ id, createdAt: Date.now(), messages: [] });
-  St.activeId = id;
-  persist();
-}
-function deleteChat(id) {
-  const idx = St.chats.findIndex(c => c.id === id);
-  if (idx === -1) return;
-  St.chats.splice(idx, 1);
+
+async function deleteChat(id) {
+  try { await apiDeleteChatRemote(id); } catch(_) {}
+  St.chats = St.chats.filter(c => c.id !== id);
   if (St.activeId === id) {
-    if (St.chats.length) St.activeId = St.chats[0].id;
-    else createNewChat();
+    if (St.chats.length) {
+      await selectChat(St.chats[0].id);
+    } else {
+      St.activeId = null;
+      St.activeMessages = [];
+      renderThread();
+    }
   }
-  persist(); renderSidebar(); renderThread();
+  renderSidebar();
 }
 
 function roleBadge(role) {
@@ -1228,34 +1297,68 @@ function showView(name) {
 /* ─────────────────────────────────────────────────────────────
    Sidebar
    ───────────────────────────────────────────────────────────── */
+function convRowHtml(c) {
+  const active  = c.id === St.activeId ? ' active' : '';
+  const pinCls  = c.pinned ? ' pinned' : '';
+  const title   = esc(chatTitle(c));
+  const pinLabel = c.pinned ? 'Unpin' : 'Pin';
+  const pinSvg = c.pinned
+    ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+         <path d="M16 1l-1.5 1.5L16 4l-4 4-2-2-1.5 1.5 2 2-4.5 4.5v2h2l4.5-4.5 2 2 1.5-1.5-2-2 4-4 1.5 1.5L23 8z"/>
+       </svg>`
+    : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+         <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+       </svg>`;
+  return `
+    <div class="conv-wrap${active}${pinCls}" data-id="${c.id}">
+      ${c.pinned ? '<span class="pin-dot"></span>' : ''}
+      <button class="conv" data-id="${c.id}" title="${title}">${title}</button>
+      <div class="conv-actions">
+        <button class="conv-action conv-pin" data-pin-id="${c.id}" data-pinned="${c.pinned}"
+                aria-label="${pinLabel} chat" title="${pinLabel}">${pinSvg}</button>
+        <button class="conv-action conv-ren" data-ren-id="${c.id}"
+                aria-label="Rename chat" title="Rename">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="conv-action conv-del" data-del-id="${c.id}"
+                aria-label="Delete chat" title="Delete">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>`;
+}
+
 function renderSidebar() {
   const body = document.getElementById('sb-body');
   const btn  = body.querySelector('.new-chat');
+
+  const pinned   = St.chats.filter(c => c.pinned);
+  const unpinned = St.chats.filter(c => !c.pinned);
+
   const groups = {};
-  for (const c of St.chats) {
-    const k = dayBucket(c.createdAt);
+  for (const c of unpinned) {
+    const k = dayBucket(c.created_at);
     (groups[k] || (groups[k] = [])).push(c);
   }
   const ORDER = ['Today','Yesterday'];
   const keys  = [...ORDER.filter(k=>groups[k]), ...Object.keys(groups).filter(k=>!ORDER.includes(k))];
 
   let html = '';
+  if (pinned.length) {
+    html += '<div class="sec">Pinned</div>';
+    for (const c of pinned) html += convRowHtml(c);
+  }
   for (const key of keys) {
     html += `<div class="sec">${esc(key)}</div>`;
-    for (const c of groups[key]) {
-      const active = c.id === St.activeId ? ' active' : '';
-      const title  = esc(chatTitle(c));
-      html += `
-        <div class="conv-wrap${active}" data-id="${esc(c.id)}">
-          <button class="conv" data-id="${esc(c.id)}" title="${title}">${title}</button>
-          <button class="conv-del" data-del-id="${esc(c.id)}" aria-label="Delete chat" title="Delete chat">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>`;
-    }
+    for (const c of groups[key]) html += convRowHtml(c);
   }
   if (!St.chats.length) html = '<div class="sb-empty">No chats yet</div>';
 
@@ -1264,11 +1367,59 @@ function renderSidebar() {
   body.appendChild(document.createRange().createContextualFragment(html));
 
   body.querySelectorAll('.conv').forEach(el =>
-    el.addEventListener('click', () => { showView('chat'); selectChat(el.dataset.id); })
+    el.addEventListener('click', () => { showView('chat'); selectChat(Number(el.dataset.id)); })
   );
   body.querySelectorAll('.conv-del').forEach(el =>
-    el.addEventListener('click', e => { e.stopPropagation(); deleteChat(el.dataset.delId); })
+    el.addEventListener('click', e => { e.stopPropagation(); deleteChat(Number(el.dataset.delId)); })
   );
+  body.querySelectorAll('.conv-pin').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); pinChat(Number(el.dataset.pinId), el.dataset.pinned === 'true'); })
+  );
+  body.querySelectorAll('.conv-ren').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); startRename(Number(el.dataset.renId)); })
+  );
+}
+
+async function pinChat(id, currentlyPinned) {
+  const chat = St.chats.find(c => c.id === id);
+  if (!chat) return;
+  try {
+    const updated = await apiUpdateChat(id, { pinned: !currentlyPinned });
+    Object.assign(chat, updated);
+    St.chats.sort((a, b) => (b.pinned - a.pinned) || (b.created_at > a.created_at ? 1 : -1));
+    renderSidebar();
+  } catch(_) {}
+}
+
+function startRename(id) {
+  const wrap = document.querySelector(`.conv-wrap[data-id="${id}"]`);
+  if (!wrap) return;
+  const convBtn = wrap.querySelector('.conv');
+  const currentTitle = St.chats.find(c => c.id === id)?.title || '';
+  const input = document.createElement('input');
+  input.className = 'conv-rename-input';
+  input.value = currentTitle;
+  wrap.replaceChild(input, convBtn);
+  input.focus();
+  input.select();
+
+  async function commitRename() {
+    const newTitle = input.value.trim();
+    if (newTitle && newTitle !== currentTitle) {
+      try {
+        const updated = await apiUpdateChat(id, { title: newTitle });
+        const chat = St.chats.find(c => c.id === id);
+        if (chat) Object.assign(chat, updated);
+      } catch(_) {}
+    }
+    renderSidebar();
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+    if (e.key === 'Escape') renderSidebar();
+  });
+  input.addEventListener('blur', commitRename);
 }
 
 function renderSidebarNav() {
@@ -1312,16 +1463,23 @@ function renderSidebarNav() {
 
 function updateStatusBar() {
   const access = userAccess();
-  const allLevels = SENS_LEVELS;
-  const chips = allLevels.map(l =>
-    `<span class="st-sens ${access.includes(l) ? SENS_CLASS[l] : 'sens-dim'}">${SENS_LABEL[l]}</span>`
-  ).join('');
-  document.getElementById('st-access').innerHTML = chips;
+  const u = St.user;
 
-  // update role badges
-  const rb = roleBadge(St.user?.role || 'user');
-  document.getElementById('role-badge').textContent    = rb;
-  document.getElementById('audit-role-badge').textContent = rb;
+  // settings panel
+  if (u) {
+    document.getElementById('sp-username').textContent = u.username;
+    document.getElementById('sp-role').textContent     = roleDisplayName(u.role);
+    document.getElementById('sp-access-chips').innerHTML = SENS_LEVELS.map(l =>
+      `<span class="sens-badge ${access.includes(l) ? SENS_CLASS[l] : 'sens-dim'}">${SENS_LABEL[l]}</span>`
+    ).join('');
+    const llmEl = document.getElementById('sp-llm');
+    if (llmEl) llmEl.textContent = 'MOCK LLM';
+  }
+
+  // role badges in headers
+  const rb = roleBadge(u?.role || 'user');
+  document.getElementById('role-badge').textContent         = rb;
+  document.getElementById('audit-role-badge').textContent   = rb;
 }
 
 function updateSidebarFooter() {
@@ -1339,11 +1497,11 @@ function updateSidebarFooter() {
    ───────────────────────────────────────────────────────────── */
 function renderThread() {
   const scroll = document.getElementById('thread-scroll');
-  const chat   = getActiveChat();
   const title  = document.getElementById('thread-title');
+  const activeChat = St.chats.find(c => c.id === St.activeId);
 
-  if (!chat || !chat.messages.length) {
-    title.textContent = 'New chat';
+  if (!St.activeMessages.length) {
+    title.textContent = activeChat ? chatTitle(activeChat) : 'New chat';
     scroll.innerHTML  = renderEmptyState();
     scroll.querySelectorAll('.sample-q').forEach(el =>
       el.addEventListener('click', () => {
@@ -1356,10 +1514,10 @@ function renderThread() {
     return;
   }
 
-  title.textContent = chatTitle(chat);
+  title.textContent = activeChat ? chatTitle(activeChat) : 'Chat';
   let html = '<div class="thread-content">';
   let prev = null;
-  for (const msg of chat.messages) {
+  for (const msg of St.activeMessages) {
     if (msg.role === 'user') {
       if (prev === 'assistant') html += '<div class="turn-sep"></div>';
       html += renderUserMsg(msg);
@@ -1371,12 +1529,21 @@ function renderThread() {
   html += '<div style="height:16px"></div></div>';
   scroll.innerHTML = html;
 
-  scroll.querySelectorAll('[data-copy]').forEach(btn =>
+  const COPY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+  </svg>`;
+  const CHECK_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>`;
+  scroll.querySelectorAll('.copy-btn').forEach(btn =>
     btn.addEventListener('click', () => {
       navigator.clipboard.writeText(decodeURIComponent(btn.dataset.copy)).then(() => {
-        btn.textContent = 'Copied!';
+        btn.innerHTML = CHECK_SVG;
         btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'Copy answer'; btn.classList.remove('copied'); }, 1800);
+        setTimeout(() => { btn.innerHTML = COPY_SVG; btn.classList.remove('copied'); }, 1800);
       }).catch(()=>{});
     })
   );
@@ -1421,37 +1588,12 @@ function renderUserMsg(msg) {
 
 function renderAgentMsg(msg) {
   const blocked = msg.confidence === 'blocked';
+  const isError = msg.confidence === 'error';
   const noSrc   = msg.confidence === 'none';
 
-  // tool call cards
-  let toolHtml = '';
-  if (msg.sources?.length && !blocked) {
-    const access    = userAccess();
-    const topChunks = msg.sources.map(s =>
-      `${esc(s.filename)}${s.section_heading ? ' &sect;' + esc(s.section_heading) : ''}`
-    ).join(' &middot; ');
-    toolHtml = `
-      <div class="tool-card">
-        <div class="tc-hd">
-          <span class="tc-dot dot-blue"></span>
-          <span class="tc-name">tool_call &middot; vector_search</span>
-          <span class="tc-dur">${esc(String(msg.searchMs||'—'))}${msg.searchMs?'ms':''}</span>
-        </div>
-        <div class="tc-body">{ "query": ${JSON.stringify(msg.question||'')}, "sensitivity": ${JSON.stringify(access)}, "top_k": 5 }</div>
-      </div>
-      <div class="tool-card">
-        <div class="tc-hd">
-          <span class="tc-dot dot-green"></span>
-          <span class="tc-name">result &middot; ${msg.sources.length} chunk${msg.sources.length!==1?'s':''} retrieved</span>
-          <span class="tc-dur">&mdash;</span>
-        </div>
-        <div class="tc-body">${topChunks}</div>
-      </div>`;
-  }
-
-  // risk flags
+  // risk flags (only show for actual policy events, not system errors)
   let riskHtml = '';
-  if (msg.risk_flags?.length) {
+  if (!isError && msg.risk_flags?.length) {
     riskHtml = `<div class="risk-row">
       <span class="risk-row-label">Risk</span>
       ${msg.risk_flags.map(f=>`<span class="risk-badge">${esc(f)}</span>`).join(' ')}
@@ -1460,7 +1602,23 @@ function renderAgentMsg(msg) {
 
   // answer body
   let bodyHtml = '';
-  if (blocked) {
+  if (isError) {
+    bodyHtml = `
+      <div class="icard amber">
+        <div class="icard-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div>
+          <div class="icard-lbl">Request failed</div>
+          <div class="icard-body">${nl2br(esc(msg.content))}</div>
+        </div>
+      </div>`;
+  } else if (blocked) {
     const isInjection = msg.risk_flags?.includes('prompt_injection_attempt');
     bodyHtml = `
       <div class="icard red">
@@ -1495,10 +1653,20 @@ function renderAgentMsg(msg) {
     bodyHtml = `<div class="answer-text">${nl2br(msg.content)}</div>`;
   }
 
+  // copy button (icon, top-right of bubble) — not for blocked/error states
+  const copyBtnHtml = (!blocked && !isError) ? `
+    <button class="copy-btn" data-copy="${esc(encodeURIComponent(msg.content))}"
+            aria-label="Copy answer" title="Copy answer">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+      </svg>
+    </button>` : '';
+
   // footnotes with sensitivity badges
   let footerHtml = '';
   if (msg.sources?.length && !blocked) {
-    const copyEnc = encodeURIComponent(msg.content);
     const fns = msg.sources.map((s,i) => {
       const sensClass = SENS_CLASS[s.sensitivity_level] || 'sens-internal';
       const sensLabel = SENS_LABEL[s.sensitivity_level] || 'INTERNAL';
@@ -1508,11 +1676,7 @@ function renderAgentMsg(msg) {
         + (s.section_heading ? ` &mdash; &sect;${esc(s.section_heading)}` : '');
       return `<div class="fn">[${i+1}] ${sensBadge} <a href="#" onclick="return false">${label}</a></div>`;
     }).join('');
-    footerHtml = `
-      <div class="action-row">
-        <button class="ab secondary" data-copy="${esc(copyEnc)}">Copy answer</button>
-      </div>
-      <div class="footnotes">${fns}</div>`;
+    footerHtml = `<div class="footnotes">${fns}</div>`;
   }
 
   return `
@@ -1529,7 +1693,9 @@ function renderAgentMsg(msg) {
         <span class="agent-ts">&nbsp;&middot;&nbsp;${esc(msg.timestamp||'')}</span>
       </div>
       <div class="agent-body">
-        ${toolHtml}${riskHtml}${bodyHtml}${footerHtml}
+        <div class="agent-bubble">
+          ${copyBtnHtml}${riskHtml}${bodyHtml}${footerHtml}
+        </div>
       </div>
     </div>`;
 }
@@ -1773,19 +1939,35 @@ function initUploadView() {
 /* ─────────────────────────────────────────────────────────────
    Chat actions
    ───────────────────────────────────────────────────────────── */
-function selectChat(id) {
+async function selectChat(id) {
   St.activeId = id;
-  persist();
+  St.activeMessages = [];
   renderSidebar();
   renderThread();
+  try {
+    const detail = await apiGetChat(id);
+    St.activeMessages = detail.messages.map(normalizeMsg);
+    const c = St.chats.find(x => x.id === id);
+    if (c) c.title = detail.title;
+    renderSidebar();
+    renderThread();
+  } catch(_) {}
   document.getElementById('comp-ta').focus();
 }
 
-function newChatAction() {
-  createNewChat();
+async function newChatAction() {
+  showView('chat');
+  try {
+    const chat = await apiCreateChat();
+    St.chats.unshift({ id: chat.id, title: chat.title, created_at: chat.created_at });
+    St.activeId = chat.id;
+    St.activeMessages = [];
+  } catch(_) {
+    St.activeId = null;
+    St.activeMessages = [];
+  }
   renderSidebar();
   renderThread();
-  showView('chat');
   document.getElementById('comp-ta').focus();
 }
 
@@ -1796,34 +1978,46 @@ async function doSend() {
   const q   = ta.value.trim();
   if (!q) return;
 
-  if (!St.activeId || !St.chats.find(c => c.id === St.activeId)) createNewChat();
+  // Ensure active chat exists (backend creates one lazily via chat_id: null)
+  const chatId = St.activeId || null;
 
   St.busy = true; ta.disabled = true; btn.disabled = true;
   ta.value = ''; resetTaHeight();
 
-  const chat = getActiveChat();
-  chat.messages.push({ role:'user', content:q, timestamp:nowTs() });
-  persist(); renderSidebar(); renderThread(); appendThinking();
+  const ts = nowTs();
+  St.activeMessages.push({ role:'user', content:q, timestamp:ts, sources:[], risk_flags:[], confidence:null });
+  renderSidebar(); renderThread(); appendThinking();
 
-  const t0 = performance.now();
   try {
-    const res = await apiChat(q);
-    const ms  = Math.round(performance.now() - t0);
+    const res = await apiChat(q, chatId);
     removeThinking();
-    chat.messages.push({
+    St.activeMessages.push({
       role:'assistant', content:res.answer, timestamp:nowTs(),
       sources:res.sources||[], risk_flags:res.risk_flags||[],
-      confidence:res.confidence||'none', question:q, searchMs:ms,
+      confidence:res.confidence||'none',
     });
+    // Backend may have created a new chat or updated the title
+    const returnedId    = res.chat_id;
+    const returnedTitle = res.chat_title;
+    if (returnedId !== St.activeId) {
+      // Brand-new chat created by backend — add to list if not already there
+      St.activeId = returnedId;
+      if (!St.chats.find(c => c.id === returnedId)) {
+        St.chats.unshift({ id: returnedId, title: returnedTitle, created_at: new Date().toISOString() });
+      }
+    } else {
+      const c = St.chats.find(c => c.id === returnedId);
+      if (c && c.title !== returnedTitle) c.title = returnedTitle;
+    }
   } catch(ex) {
     removeThinking();
-    chat.messages.push({
-      role:'assistant', content:ex.message||'Request failed.',
-      timestamp:nowTs(), sources:[], risk_flags:['request_error'],
-      confidence:'blocked', question:q, searchMs:0,
+    St.activeMessages.push({
+      role:'assistant', content:ex.message||'Request failed. Please try again.',
+      timestamp:nowTs(), sources:[], risk_flags:[],
+      confidence:'error',
     });
   } finally {
-    persist(); renderSidebar(); renderThread();
+    renderSidebar(); renderThread();
     St.busy = false; ta.disabled = false; btn.disabled = false; ta.focus();
   }
 }
@@ -1843,12 +2037,8 @@ async function doLogin(e) {
   try {
     St.token = await apiLogin(user, pass);
     St.user  = await apiMe(St.token);
-    persist();
-    if (!St.activeId || !St.chats.find(c => c.id === St.activeId)) {
-      if (St.chats.length) St.activeId = St.chats[0].id;
-      else createNewChat();
-    }
-    showApp();
+    persistToken();
+    await showApp();
   } catch(ex) {
     err.textContent = ex.message || 'Login failed';
     err.classList.remove('hidden');
@@ -1857,22 +2047,39 @@ async function doLogin(e) {
 }
 
 function doLogout() {
-  St.token = null; St.user = null; St.activeId = null;
-  persist();
+  // Clear all user state — next login gets a clean slate
+  St.token          = null;
+  St.user           = null;
+  St.chats          = [];
+  St.activeId       = null;
+  St.activeMessages = [];
+  St.busy           = false;
+  clearToken();
+
   document.getElementById('login-overlay').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
-  document.getElementById('login-btn').disabled = false;
+  document.getElementById('login-btn').disabled    = false;
   document.getElementById('login-btn').textContent = 'Sign in';
   document.getElementById('login-err').classList.add('hidden');
   document.getElementById('login-user').focus();
 }
 
-function showApp() {
+async function showApp() {
   document.getElementById('login-overlay').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   updateStatusBar();
   updateSidebarFooter();
   renderSidebarNav();
+
+  // Load this user's own chats from the backend
+  St.chats          = [];
+  St.activeId       = null;
+  St.activeMessages = [];
+  try {
+    St.chats = await apiListChats();
+    if (St.chats.length) await selectChat(St.chats[0].id);
+  } catch(_) {}
+
   renderSidebar();
   renderThread();
   showView('chat');
@@ -1895,6 +2102,21 @@ function wireEvents() {
   document.getElementById('send-btn').addEventListener('click', doSend);
   document.getElementById('audit-refresh-btn').addEventListener('click', loadAuditLogs);
 
+  // settings panel toggle
+  const settingsBtn   = document.getElementById('settings-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  settingsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    settingsPanel.classList.toggle('hidden');
+  });
+  document.addEventListener('click', e => {
+    if (!settingsPanel.classList.contains('hidden') &&
+        !settingsPanel.contains(e.target) &&
+        e.target !== settingsBtn) {
+      settingsPanel.classList.add('hidden');
+    }
+  });
+
   const ta = document.getElementById('comp-ta');
   ta.addEventListener('input', () => autoResize(ta));
   ta.addEventListener('keydown', e => {
@@ -1908,18 +2130,15 @@ function wireEvents() {
    Bootstrap
    ───────────────────────────────────────────────────────────── */
 async function init() {
-  restore();
+  restoreToken();
   wireEvents();
   if (St.token) {
     try {
       St.user = await apiMe(St.token);
-      if (!St.activeId || !St.chats.find(c => c.id === St.activeId)) {
-        if (St.chats.length) St.activeId = St.chats[0].id;
-        else createNewChat();
-      }
-      showApp();
+      await showApp();
     } catch(_) {
-      St.token = null; persist();
+      St.token = null;
+      clearToken();
       document.getElementById('login-overlay').classList.remove('hidden');
       document.getElementById('login-user').focus();
     }

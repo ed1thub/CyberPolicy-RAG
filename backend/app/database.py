@@ -4,7 +4,7 @@ from collections.abc import Generator
 
 from passlib.context import CryptContext
 from passlib.hash import bcrypt
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from backend.app.config import settings
@@ -70,6 +70,17 @@ def seed_demo_users(database_session: Session) -> None:
     database_session.commit()
 
 
+def _run_migrations(database_engine: Engine) -> None:
+    """Apply additive schema changes that create_all() cannot handle."""
+    inspector = inspect(database_engine)
+    with database_engine.begin() as conn:
+        existing_tables = inspector.get_table_names()
+        if "chats" in existing_tables:
+            existing_cols = {c["name"] for c in inspector.get_columns("chats")}
+            if "pinned" not in existing_cols:
+                conn.execute(text("ALTER TABLE chats ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0"))
+
+
 def init_database(
     database_engine: Engine = engine,
     session_factory: sessionmaker[Session] = SessionLocal,
@@ -79,5 +90,6 @@ def init_database(
     from backend.app import models  # noqa: F401
 
     Base.metadata.create_all(bind=database_engine)
+    _run_migrations(database_engine)
     with session_factory() as database_session:
         seed_demo_users(database_session)

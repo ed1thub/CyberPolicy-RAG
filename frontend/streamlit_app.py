@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import webbrowser
 
 import streamlit as st
 
-URL = "http://localhost:8000"
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+URL = os.environ.get("PUBLIC_BACKEND_URL", BACKEND_URL)
 
 st.set_page_config(page_title="CyberPolicy-RAG", page_icon="🛡️")
 st.title("🛡️ CyberPolicy-RAG")

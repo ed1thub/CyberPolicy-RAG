@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+*.db
+data/chroma
+data/uploaded_policies
+dist
+build
+*.egg-info

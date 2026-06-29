@@ -149,6 +149,44 @@ class VectorStore:
             self.collection.delete(ids=ids)
         return len(ids)
 
+    def get_all_chunks(self) -> list[SearchResult]:
+        """Return every stored chunk without a query or sensitivity filter."""
+        result = self.collection.get(include=["documents", "metadatas"])
+        ids = result.get("ids") or []
+        docs = result.get("documents") or []
+        metas = result.get("metadatas") or []
+        return [
+            SearchResult(chunk_id=cid, text=doc, metadata=dict(meta), distance=None)
+            for cid, doc, meta in zip(ids, docs, metas)
+        ]
+
+    def get_section(
+        self,
+        sensitivity_level: str,
+        heading_keyword: str,
+    ) -> SearchResult | None:
+        """Return the first chunk matching a sensitivity level and heading keyword."""
+        try:
+            result = self.collection.get(
+                where={"sensitivity_level": sensitivity_level.lower()},
+                include=["documents", "metadatas"],
+            )
+        except Exception:
+            return None
+        ids = result.get("ids") or []
+        docs = result.get("documents") or []
+        metas = result.get("metadatas") or []
+        kw = heading_keyword.lower()
+        for cid, doc, meta in zip(ids, docs, metas):
+            if kw in str(meta.get("section_heading", "")).lower():
+                return SearchResult(
+                    chunk_id=cid,
+                    text=doc,
+                    metadata=dict(meta),
+                    distance=None,
+                )
+        return None
+
     def reset_collection(self) -> None:
         """Delete all stored policy chunks and recreate the collection."""
         self.client.delete_collection(name=COLLECTION_NAME)

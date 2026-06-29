@@ -8,28 +8,10 @@ from backend.app.security.access_control import get_allowed_sensitivity_levels
 DEFAULT_TOP_K = 3
 MAX_CANDIDATE_CHUNKS = 12
 _SEARCH_STOP_WORDS = {
-    "about",
-    "and",
-    "are",
-    "can",
-    "does",
-    "document",
-    "employees",
-    "for",
-    "how",
-    "if",
-    "is",
-    "must",
-    "policy",
-    "required",
-    "should",
-    "the",
-    "this",
-    "to",
-    "users",
-    "what",
-    "when",
-    "which",
+    "a", "about", "an", "and", "are", "can", "do", "does", "document",
+    "employees", "for", "how", "if", "in", "is", "it", "must", "of",
+    "policy", "required", "should", "the", "they", "this", "to", "users",
+    "what", "when", "which", "with",
 }
 
 
@@ -51,13 +33,7 @@ class Retriever:
         role: str,
         top_k: int = DEFAULT_TOP_K,
     ) -> list[SearchResult]:
-        """Return only chunks the role is authorised to read.
-
-        Steps:
-        1. Determine allowed sensitivity levels for role (deny-by-default).
-        2. Return empty list immediately if role has no allowed levels.
-        3. Pass allowed levels as a hard filter to vector store search.
-        """
+        """Return only chunks the role is authorised to read."""
         allowed_levels = get_allowed_sensitivity_levels(role)
         if not allowed_levels:
             return []
@@ -70,21 +46,82 @@ class Retriever:
         return _rerank_results(question, candidates)[:top_k]
 
 
-def _rerank_results(question: str, results: list[SearchResult]) -> list[SearchResult]:
-    """Prefer chunks with lexical matches while preserving vector distance ties."""
-    keywords = _question_keywords(question)
-    if not keywords:
-        return results
+# ---------------------------------------------------------------------------
+# Reranking helpers
+# ---------------------------------------------------------------------------
 
-    indexed_results = list(enumerate(results))
-    indexed_results.sort(
-        key=lambda item: (
-            -_lexical_score(keywords, item[1]),
-            item[1].distance if item[1].distance is not None else float("inf"),
-            item[0],
-        )
-    )
-    return [result for _, result in indexed_results]
+def _rerank_results(question: str, results: list[SearchResult]) -> list[SearchResult]:
+    """Multi-signal rerank: phrase > sensitivity_level > intent_heading > lexical > vector."""
+    keywords = _question_keywords(question)
+
+    def _score(item: tuple[int, SearchResult]) -> tuple:
+        idx, result = item
+        phrase  = _exact_phrase_score(question, result)
+        level   = _sensitivity_level_score(question, result)
+        intent  = _intent_heading_boost(question, result)
+        lexical = _lexical_score(keywords, result) if keywords else 0
+        dist    = result.distance if result.distance is not None else float("inf")
+        # Negate scores so lower tuple = better rank
+        return (-phrase, -level, -intent, -lexical, dist, idx)
+
+    indexed = list(enumerate(results))
+    indexed.sort(key=_score)
+    return [r for _, r in indexed]
+
+
+def _exact_phrase_score(question: str, result: SearchResult) -> int:
+    """Score based on exact multi-word phrase matches from the query in the chunk."""
+    words = re.findall(r"[a-z0-9]+", question.lower())
+    # Build bigrams and trigrams; skip phrases composed entirely of stop words
+    phrases: list[str] = []
+    for n in (2, 3):
+        for i in range(len(words) - n + 1):
+            gram = words[i : i + n]
+            if any(w not in _SEARCH_STOP_WORDS for w in gram):
+                phrases.append(" ".join(gram))
+
+    if not phrases:
+        return 0
+
+    haystack = f"{result.text} {result.metadata.get('section_heading', '')}".lower()
+    return sum(3 for phrase in phrases if phrase in haystack)
+
+
+def _sensitivity_level_score(question: str, result: SearchResult) -> int:
+    """Boost chunks whose sensitivity level is explicitly mentioned in the question."""
+    q = question.lower()
+    chunk_level = str(result.metadata.get("sensitivity_level", "")).lower()
+    for level in ("confidential", "restricted", "internal", "public"):
+        if level in q and level in chunk_level:
+            return 4
+    return 0
+
+
+def _intent_heading_boost(question: str, result: SearchResult) -> int:
+    """Return a boost when the chunk's section heading matches the question intent."""
+    q = question.lower()
+    heading = str(result.metadata.get("section_heading", "")).lower()
+
+    intents = [
+        # (question pattern, heading keyword, score)
+        (r"\bwhat\s+is\b|\bdefin|\bmeaning\b", "definition", 4),
+        (r"\bwhat\s+sensitivity\s+level|\bwhich\s+.*\blevel\b|\bwhat\s+level\b", "examples", 4),
+        (r"\bexample|\bwhat\b.*\binclude|\bsource\s+code\b|\bapi\s+key", "examples", 3),
+        (r"\bwhere\b.*\bstor|\bstor(age|ed|ing)\b", "storage", 3),
+        (r"\bhow\s+often\b|\bhow\s+frequent|\breviewed?\b.*\baccess|\baccess\b.*\brevie", "access control", 3),
+        (r"\bai\s+tool|\bartificial\s+intell|\bchatgpt|\bcopilot\b", "ai tool", 3),
+        (r"\breport|\bincident\b", "incident", 3),
+        (r"\btransmit|\bsend\b.*\bdata|\bshare\b.*\bdata", "transmission", 2),
+        (r"\bencrypt", "encryption", 2),
+        (r"\bscope\b|\bwho\b.*\bappl", "scope", 2),
+        (r"\bthird.party|\bvendor\b", "third-party", 2),
+    ]
+
+    best = 0
+    for pattern, heading_kw, score in intents:
+        if re.search(pattern, q) and heading_kw in heading:
+            best = max(best, score)
+    return best
 
 
 def _question_keywords(question: str) -> set[str]:

@@ -136,6 +136,7 @@ def test_chunks_are_inserted_with_text_embeddings_and_metadata(
             "sensitivity_level",
             "allowed_roles",
             "section_heading",
+            "section_number",
             "page",
             "chunk_id",
         }

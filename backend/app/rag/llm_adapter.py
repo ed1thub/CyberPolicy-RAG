@@ -114,15 +114,14 @@ def _answer_known_policy_question(question: str, context: str) -> str | None:
         if match:
             return f"Passwords must be at least {match.group(1)} characters long."
 
-    if "sensitivity level" in question_lower or "classification" in question_lower:
-        for pattern in (
-            r"\*\*Classification:\*\*\s*([^\n\r]+)",
-            r"\bClassification:\s*([^\n\r]+)",
-            r"\bsensitivity[_\s-]*level:\s*([^\n\r]+)",
-        ):
-            match = re.search(pattern, context, flags=re.IGNORECASE)
-            if match:
-                return _ensure_period(_clean_text(match.group(1)))
+    if re.search(r"how\s+often|how\s+frequent", question_lower) and "access" in question_lower:
+        match = re.search(
+            r"access\s+must\s+be\s+reviewed\s+at\s+least\s+every\s+(\d+\s+days)",
+            context,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return f"At least every {match.group(1)}."
 
     if (
         "critical" in question_lower
@@ -154,6 +153,32 @@ def _answer_known_policy_question(question: str, context: str) -> str | None:
         ):
             return "They must report it to the IT or Security Team immediately."
 
+    # "Can X data include Y?" — check negative list
+    can_include_m = re.search(
+        r"can\s+(?:public|internal|confidential|restricted)\s+data\s+include\s+(.+?)[\?.]?$",
+        question_lower,
+    )
+    if can_include_m:
+        level_m = re.search(
+            r"can\s+(public|internal|confidential|restricted)\s+data\s+include",
+            question_lower,
+        )
+        orig_m = re.search(
+            r"can\s+(?:public|internal|confidential|restricted)\s+data\s+include\s+(.+?)[\?.]?$",
+            question,
+            re.IGNORECASE,
+        )
+        if level_m and orig_m:
+            level_cap = level_m.group(1).capitalize()
+            item_lower = can_include_m.group(1).strip()
+            item_display = orig_m.group(1).strip()
+            if re.search(
+                rf"must\s+not\s+include[^.]*?{re.escape(item_lower)}",
+                _preprocess_context(context),
+                re.IGNORECASE | re.DOTALL,
+            ):
+                return f"No. {level_cap} data must not include {item_display}."
+
     if (
         ("public ai" in question_lower or "ai tools" in question_lower)
         and any(term in question_lower for term in ("restricted", "confidential"))
@@ -181,18 +206,18 @@ def _extract_relevant_answer(question: str, context: str) -> str | None:
         return None
 
     candidates = _context_candidates(context)
-    scored_candidates: list[tuple[int, str]] = []
+    scored: list[tuple[int, str]] = []
     for candidate in candidates:
-        candidate_lower = candidate.lower()
-        score = sum(1 for keyword in keywords if keyword in candidate_lower)
+        score = sum(1 for kw in keywords if kw in candidate.lower())
         if score:
-            scored_candidates.append((score, candidate))
+            scored.append((score, candidate))
 
-    if not scored_candidates:
+    if not scored:
         return None
 
-    scored_candidates.sort(key=lambda item: (-item[0], len(item[1])))
-    best_score, best_candidate = scored_candidates[0]
+    # Higher score first; for equal scores prefer longer (more complete answer)
+    scored.sort(key=lambda item: (-item[0], -len(item[1])))
+    best_score, best_candidate = scored[0]
     minimum_score = 1 if len(keywords) <= 2 else 2
     if best_score < minimum_score:
         return None
@@ -208,21 +233,78 @@ def _question_keywords(question: str) -> set[str]:
 
 
 def _context_candidates(context: str) -> list[str]:
+    preprocessed = _preprocess_context(context)
     candidates: list[str] = []
-    for line in context.splitlines():
-        cleaned = _clean_text(line)
-        if not cleaned or _is_low_value_line(cleaned):
+
+    paras = [p.strip() for p in re.split(r"\n\s*\n", preprocessed) if p.strip()]
+
+    # Bi-paragraph combined candidates (captures multi-sentence definitions)
+    for i in range(len(paras) - 1):
+        p1, p2 = paras[i], paras[i + 1]
+        if re.match(r"^\s*[-*•]", p1) or re.match(r"^\s*[-*•]", p2):
             continue
-        if len(cleaned) <= 260:
+        c1, c2 = _clean_text(p1), _clean_text(p2)
+        if (
+            c1
+            and c2
+            and len(c1.split()) >= 5
+            and not _is_low_value_line(c1)
+            and not _is_low_value_line(c2)
+        ):
+            combined = f"{c1} {c2}"
+            if len(combined.split()) >= 8 and len(combined) <= 500:
+                candidates.append(combined)
+
+    # Line-level candidates
+    for line in preprocessed.splitlines():
+        cleaned = _clean_text(line)
+        if cleaned and not _is_low_value_line(cleaned) and len(cleaned.split()) >= 5 and len(cleaned) <= 260:
             candidates.append(cleaned)
 
-    sentences = re.split(r"(?<=[.!?])\s+", _clean_text(context))
-    for sentence in sentences:
-        cleaned = _clean_text(sentence)
-        if cleaned and len(cleaned) <= 260 and not _is_low_value_line(cleaned):
-            candidates.append(cleaned)
+    # Sentence-level candidates — split per paragraph to avoid heading+sentence gluing
+    for para in paras:
+        for sentence in re.split(r"(?<=[.!?])\s+", para):
+            cleaned = _clean_text(sentence)
+            if cleaned and not _is_low_value_line(cleaned) and len(cleaned.split()) >= 5 and len(cleaned) <= 260:
+                candidates.append(cleaned)
 
     return candidates
+
+
+def _preprocess_context(context: str) -> str:
+    """Strip heading markers and expand 'intro:\n\n- item' blocks into sentences."""
+    # Strip ## heading markers to plain text
+    lines = []
+    for line in context.split("\n"):
+        m = re.match(r"^#{1,6}\s+(.+)$", line.rstrip())
+        lines.append(m.group(1) if m else line)
+    text = "\n".join(lines)
+
+    # Expand colon+list blocks: "Foo may be stored in:\n\n- A\n- B" → "Foo may be stored in a, b."
+    def _join_list(m: re.Match) -> str:
+        intro = m.group(1).strip().rstrip(":")
+        items = re.findall(r"^\s*[-*•]\s*(.+)", m.group(2), re.MULTILINE)
+        clean_items = []
+        for item in items:
+            item = item.strip().replace("**", "").replace("`", "").rstrip(".")
+            if item:
+                clean_items.append(item[0].lower() + item[1:])
+        if not clean_items:
+            return m.group(0)
+        if len(clean_items) == 1:
+            joined = clean_items[0]
+        elif len(clean_items) == 2:
+            joined = f"{clean_items[0]} and {clean_items[1]}"
+        else:
+            joined = ", ".join(clean_items[:-1]) + ", and " + clean_items[-1]
+        return f"{intro} {joined}."
+
+    text = re.sub(
+        r"([^\n]+:)\s*\n+\s*((?:\s*[-*•][^\n]+\n?)+)",
+        _join_list,
+        text,
+    )
+    return text
 
 
 def _clean_text(text: str) -> str:

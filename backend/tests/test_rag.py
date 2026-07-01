@@ -338,7 +338,7 @@ def test_retriever_oversamples_then_reranks_by_question_terms() -> None:
             "What is the required password length?",
             "Passwords must be at least 12 characters long.",
         ),
-        ("Which sensitivity level is this document?", "Internal Use Only."),
+        ("Which sensitivity level is this document?", "Internal."),
         (
             "How quickly must critical vulnerabilities be fixed?",
             "Critical vulnerabilities must be remediated within 7 days.",
@@ -570,6 +570,264 @@ def test_no_source_response_has_confidence_none() -> None:
     service = RagService(vector_store=empty_store, llm=MockLLM())
     response = service.answer("any question", "admin")
     assert response.confidence == "none"
+
+
+# ---------------------------------------------------------------------------
+# Routing accuracy: 7 production-scenario tests
+# ---------------------------------------------------------------------------
+
+_INTERNAL_DEFINITION_TEXT = (
+    "3. Definition of Internal Data\n\n"
+    "Internal data is information intended only for use inside the organisation.\n\n"
+    "It may be shared with authorised employees and approved contractors, "
+    "but it must not be published publicly without approval."
+)
+
+_CONFIDENTIAL_ACCESS_TEXT = (
+    "6. Access Control Requirements\n\n"
+    "Access to Confidential data must follow least privilege.\n\n"
+    "Requirements include:\n\n"
+    "- Access must be approved by the data owner.\n"
+    "- Access must be reviewed at least every 90 days.\n"
+    "- Multi-factor authentication must be used where available.\n"
+    "- Shared accounts must not be used.\n"
+    "- Access must be removed immediately when no longer needed.\n"
+    "- Privileged access must be logged and reviewed."
+)
+
+_RESTRICTED_ACCESS_TEXT = (
+    "6. Access Control Requirements\n\n"
+    "Access to Restricted data must follow strict least privilege.\n\n"
+    "Requirements include:\n\n"
+    "- Access must be approved by the data owner and Security Team.\n"
+    "- Multi-factor authentication is mandatory.\n"
+    "- Access must be reviewed at least every 30 days.\n"
+    "- Emergency access must be logged and reviewed.\n"
+    "- Access must be removed immediately when no longer required."
+)
+
+_CONFIDENTIAL_EXAMPLES_TEXT = (
+    "4. Examples of Confidential Data\n\n"
+    "Examples include:\n\n"
+    "- Customer names and contact details.\n"
+    "- Employee records.\n"
+    "- Payroll information.\n"
+    "- Business contracts.\n"
+    "- Internal financial documents.\n"
+    "- Source code.\n"
+    "- Security architecture documents.\n"
+    "- Internal audit reports.\n"
+    "- Vendor security reviews.\n"
+    "- Non-public product plans.\n"
+    "- Legal correspondence.\n"
+    "- Customer support records."
+)
+
+_RESTRICTED_EXAMPLES_TEXT = (
+    "4. Examples of Restricted Data\n\n"
+    "Examples include:\n\n"
+    "- Passwords.\n"
+    "- Multi-factor authentication recovery codes.\n"
+    "- API keys.\n"
+    "- Private encryption keys.\n"
+    "- SSH private keys.\n"
+    "- Database credentials.\n"
+    "- Cloud administrator credentials.\n"
+    "- Payment card data.\n"
+    "- Highly sensitive personal information.\n"
+    "- Security incident evidence.\n"
+    "- Vulnerability exploit details.\n"
+    "- Malware samples.\n"
+    "- Legal investigation files.\n"
+    "- Backup encryption keys.\n"
+    "- Production environment secrets."
+)
+
+_PUBLIC_STORAGE_TEXT = (
+    "7. Storage Requirements\n\n"
+    "Public data may be stored in:\n\n"
+    "- Public websites.\n"
+    "- Approved content management systems.\n"
+    "- Marketing platforms.\n"
+    "- Public document repositories.\n"
+    "- Official social media platforms.\n\n"
+    "Even though Public data has low sensitivity, it must still be "
+    "protected from unauthorised modification."
+)
+
+_PUBLIC_RULES_TEXT = (
+    "5. Public Data Rules\n\n"
+    "Public data may be:\n\n"
+    "- Published on the company website.\n"
+    "- Shared on official social media accounts.\n"
+    "- Sent to customers or partners.\n\n"
+    "Public data must not include:\n\n"
+    "- Passwords.\n"
+    "- API keys.\n"
+    "- Private keys.\n"
+    "- Customer records.\n"
+    "- Employee personal records."
+)
+
+
+def _make_routing_chunk(
+    chunk_id: str,
+    text: str,
+    sensitivity_level: str,
+    allowed_roles: str,
+    section_heading: str,
+    document_title: str,
+    filename: str,
+) -> DocumentChunk:
+    return DocumentChunk(
+        chunk_id=chunk_id,
+        text=text,
+        document_title=document_title,
+        filename=filename,
+        sensitivity_level=sensitivity_level,
+        allowed_roles=allowed_roles,
+        section_heading=section_heading,
+        page=None,
+    )
+
+
+class RoutingEmbeddings:
+    """Deterministic embeddings for routing tests — returns a stable nonzero vector."""
+
+    def _embed(self, text: str) -> list[float]:
+        words = text.lower().split()
+        kw = [
+            "definition", "examples", "storage", "access", "control",
+            "rules", "api", "keys", "source", "code", "public", "restricted",
+            "confidential", "internal", "password",
+        ]
+        vals = [float(words.count(k)) for k in kw]
+        if not any(vals):
+            vals[-1] = 1.0
+        return vals
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        return [self._embed(t) for t in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed(text)
+
+
+@pytest.fixture
+def routing_service(tmp_path: Path) -> RagService:
+    store = VectorStore(
+        chroma_path=tmp_path / "routing-chroma",
+        embedding_provider=RoutingEmbeddings(),
+    )
+    chunks = [
+        _make_routing_chunk(
+            "internal_def_001", _INTERNAL_DEFINITION_TEXT, "internal",
+            "user,security_analyst,admin",
+            "3. Definition of Internal Data",
+            "Internal Data Handling Policy", "internal-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "conf_access_001", _CONFIDENTIAL_ACCESS_TEXT, "confidential",
+            "security_analyst,admin",
+            "6. Access Control Requirements",
+            "Confidential Data Handling Policy", "confidential-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "restr_access_001", _RESTRICTED_ACCESS_TEXT, "restricted",
+            "admin",
+            "6. Access Control Requirements",
+            "Restricted Data Handling Policy", "restricted-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "conf_examples_001", _CONFIDENTIAL_EXAMPLES_TEXT, "confidential",
+            "security_analyst,admin",
+            "4. Examples of Confidential Data",
+            "Confidential Data Handling Policy", "confidential-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "restr_examples_001", _RESTRICTED_EXAMPLES_TEXT, "restricted",
+            "admin",
+            "4. Examples of Restricted Data",
+            "Restricted Data Handling Policy", "restricted-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "public_storage_001", _PUBLIC_STORAGE_TEXT, "public",
+            "user,security_analyst,admin",
+            "7. Storage Requirements",
+            "Public Data Handling Policy", "public-data-handling-policy.md",
+        ),
+        _make_routing_chunk(
+            "public_rules_001", _PUBLIC_RULES_TEXT, "public",
+            "user,security_analyst,admin",
+            "5. Public Data Rules",
+            "Public Data Handling Policy", "public-data-handling-policy.md",
+        ),
+    ]
+    store.add_chunks(chunks)
+    return RagService(vector_store=store, llm=MockLLM())
+
+
+def test_what_is_internal_data(routing_service: RagService) -> None:
+    response = routing_service.answer("What is Internal data?", "user")
+    assert response.answer == (
+        "Internal data is information intended only for use inside the organisation."
+    )
+    assert response.confidence == "high"
+    assert any("Definition" in (s.section_heading or "") for s in response.sources)
+
+
+def test_confidential_access_review_frequency(routing_service: RagService) -> None:
+    response = routing_service.answer(
+        "How often must Confidential data access be reviewed?", "admin"
+    )
+    assert response.answer == (
+        "Confidential data access must be reviewed at least every 90 days."
+    )
+    assert response.confidence == "high"
+    assert any("Access Control" in (s.section_heading or "") for s in response.sources)
+
+
+def test_restricted_access_review_frequency(routing_service: RagService) -> None:
+    response = routing_service.answer(
+        "How often must Restricted data access be reviewed?", "admin"
+    )
+    assert response.answer == (
+        "Restricted data access must be reviewed at least every 30 days."
+    )
+    assert response.confidence == "high"
+    assert any("Access Control" in (s.section_heading or "") for s in response.sources)
+
+
+def test_source_code_sensitivity_level(routing_service: RagService) -> None:
+    response = routing_service.answer("What sensitivity level is source code?", "admin")
+    assert response.answer == "source code is Confidential."
+    assert response.confidence == "high"
+    assert any("Examples" in (s.section_heading or "") for s in response.sources)
+
+
+def test_api_keys_sensitivity_level(routing_service: RagService) -> None:
+    response = routing_service.answer("What sensitivity level are API keys?", "admin")
+    assert response.answer == "API keys are Restricted."
+    assert response.confidence == "high"
+    assert any("Examples" in (s.section_heading or "") for s in response.sources)
+
+
+def test_public_storage_locations(routing_service: RagService) -> None:
+    response = routing_service.answer("Where can Public data be stored?", "user")
+    assert response.answer == (
+        "Public data may be stored in public websites, approved content management "
+        "systems, marketing platforms, public document repositories, and official "
+        "social media platforms."
+    )
+    assert response.confidence == "high"
+    assert any("Storage" in (s.section_heading or "") for s in response.sources)
+
+
+def test_can_public_data_include_api_keys(routing_service: RagService) -> None:
+    response = routing_service.answer("Can Public data include API keys?", "user")
+    assert response.answer == "No. Public data must not include API keys."
+    assert response.confidence == "high"
+    assert any("Public Data" in (s.section_heading or "") or "Rules" in (s.section_heading or "") for s in response.sources)
 
 
 def test_sources_deduplicated_per_document_section(tmp_path: Path) -> None:

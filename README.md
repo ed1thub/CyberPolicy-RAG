@@ -222,14 +222,25 @@ All 193 backend tests currently pass. `pytest.ini` also includes `frontend/tests
 
 ## Screenshots
 
-*(Add screenshots to `docs/screenshots/` and reference them here.)*
+### Login page
 
-- [ ] Login page
-- [ ] Chat answer with citations
-- [ ] Prompt-injection blocked response
-- [ ] Audit logs page
-- [ ] Admin upload page
-- [ ] GitHub Actions run passing
+![Login page](docs/screenshots/login.png)
+
+### Chat answer with citations
+
+![Chat answer with citations](docs/screenshots/chat-answer-citations.png)
+
+### Prompt-injection blocked response
+
+![Prompt-injection blocked response](docs/screenshots/prompt-injection-blocked.png)
+
+### Audit logs page
+
+![Audit logs page](docs/screenshots/audit-logs.png)
+
+### Admin upload page
+
+![Admin upload page](docs/screenshots/admin-upload.png)
 
 ## Future Improvements
 
